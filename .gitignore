@@ -37,3 +37,17 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# anything in data/ (so i don't actually commit my transactions!
+!/data
+/data/*
+
+# anything in out/ (so i don't accidentally comit my reports!)
+!/out
+/out/*
+
+# html, md (except README.md) and pdfs in root
+*.html
+*.pdf
+*.md
+!README.md

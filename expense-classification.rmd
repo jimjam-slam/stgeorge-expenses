@@ -1,0 +1,160 @@
+---
+title: "Credit card expense trends"
+author: "James Goldie"
+date: "`r Sys.Date()`"
+output:
+  pagedown::html_paged:
+    toc: false
+    # change to true for a self-contained document, but it'll be a litte slower for Pandoc to render
+    self_contained: true
+# uncomment this line to produce HTML and PDF in RStudio:
+#knit: pagedown::chrome_print
+params:
+  # transaction file to source in /data
+  expense_file: "trans121220.csv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(gt)
+library(here)
+```
+
+Okay, let's read the data in and chop it up by month (_not_ statement periods!):
+
+```{r, echo = FALSE}
+read_csv(
+  here("data", params$expense_file),
+  col_types = cols(
+    Date = col_date("%Y%m%d"),
+    Debit = col_double(),
+    Credit = col_double(),
+    .default = col_character())) %>%
+  mutate(
+    dt_month = month(Date),
+    dt_year = year(Date),
+    year_month = paste(
+      dt_year,
+      str_pad(dt_month, 2, "left", "0"), sep = "-"),
+    Credit = -Credit,
+    amount = coalesce(Debit, Credit)) ->
+records
+```
+
+```{r colours, echo = FALSE}
+brewer_pal(type = "qual")(length(unique(records$Category))) %>%
+  set_names(unique(records$Category)) ->
+category_colours
+```
+
+# Expenses: by category
+
+```{r bycategory, echo = FALSE, fig.height = 6}
+# analyse debits by main category
+records %>%
+  filter(amount > 0) %>%
+  group_by(year_month, Category) %>%
+  summarise(amount = sum(amount)) %>%
+  ungroup() %>%
+  arrange(year_month) ->
+amounts_maincat
+
+# plot unfacetted data in background
+amounts_maincat_total <-
+  select(amounts_maincat, -Category)
+
+ggplot(amounts_maincat) +
+  aes(x = year_month, y = amount, fill = Category) +
+  geom_col(data = amounts_maincat_total, fill = "grey90") +
+  geom_col(colour = alpha("black", 0.5)) +
+  geom_text(
+    aes(label = scales::dollar(amount)),
+    size = rel(2.25),
+    hjust = 0, nudge_y = 150,
+    family = "Roboto Condensed") +
+  facet_wrap(facets = vars(Category), ncol = 3) +
+  scale_y_continuous(labels = scales::dollar) +
+  scale_fill_manual(values = category_colours) +
+  coord_flip() +
+  guides(fill = "none") +
+  theme_light(base_family = "Roboto Condensed") +
+  labs(
+    x = NULL, y = "Amount",
+    title = "Expenses by category")
+```
+
+# Expenses: by subcategory
+
+```{r bysubcat, echo = FALSE, fig.height = 12}
+records %>%
+  filter(amount > 0) %>%
+  group_by(year_month, Category, SubCategory) %>%
+  summarise(amount = sum(amount)) %>%
+  ungroup() %>%
+  arrange(year_month) ->
+amounts_subcat
+
+# plot unfacetted data in background
+amounts_subcat_total <-
+  select(amounts_subcat, -SubCategory)
+
+ggplot(amounts_subcat) +
+  aes(x = year_month, y = amount, fill = Category) +
+  geom_col(data = amounts_subcat_total, fill = "grey90") +
+  geom_col(colour = alpha("black", 0.5)) +
+  geom_text(
+    aes(label = scales::dollar(amount)),
+    size = rel(2.25),
+    hjust = 0, nudge_y = 150,
+    family = "Roboto Condensed") +
+  facet_wrap(facets = vars(SubCategory), ncol = 3) +
+  scale_y_continuous(labels = scales::dollar) +
+  scale_fill_manual(values = category_colours) +
+  coord_flip() +
+  theme_light(base_family = "Roboto Condensed") +
+  theme(
+    legend.position = "top",
+    legend.direction = "horizontal") +
+  labs(
+    x = NULL, y = "Amount",
+    title = "Expenses by subcategory")
+```
+
+# Change in expense categories
+
+```{r delta, echo = FALSE}
+amounts_subcat %>%
+  filter(year_month == unique(.$year_month)[2:3]) %>%
+  group_by(SubCategory) %>%
+  arrange(desc(year_month)) %>%
+  summarise(delta = amount[1] - amount[2]) %>%
+  ungroup() %>%
+  arrange(desc(delta)) %>%
+  filter(!is.na(delta)) %>%
+  mutate(delta_str = if_else(delta < 0,
+    paste("\u25be", dollar(delta)), paste("\u25b2", dollar(delta)))) %>%
+  select("Sub-category" = SubCategory, "Change" = delta_str) %>%
+  gt() # %>%
+  # tab_style(cell_fill("black"), cells_column_labels()) %>%
+  # tab_style(cell_text("white", weight = "bold"), cells_column_labels())
+```
+
+# Top expenses last month
+
+```{r thismonth, echo = FALSE}
+records %>%
+  filter(year_month == unique(.$year_month)[2]) %>%
+  print() %>%
+  group_by(SubCategory) %>%
+  arrange(desc(amount)) %>%
+  slice(1:5) %>%
+  mutate(full_label = paste0(
+    dollar(amount), " (", format(Date, "%B %d"), "): ", Description)) %>%
+  select("Expense" = full_label) %>%
+  gt() %>%
+  tab_style(cell_fill("goldenrod"), cells_row_groups()) %>%
+  tab_style(cell_text(weight = "bold"), cells_row_groups())
+```
