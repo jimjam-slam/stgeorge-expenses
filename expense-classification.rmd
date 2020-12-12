@@ -14,7 +14,7 @@ params:
   expense_file: "trans121220.csv"
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(lubridate)
@@ -123,13 +123,13 @@ ggplot(amounts_subcat) +
     title = "Expenses by subcategory")
 ```
 
-# Change in expense categories
+# Changes last momth
 
 ```{r delta, echo = FALSE}
 amounts_subcat %>%
-  filter(year_month == unique(.$year_month)[2:3]) %>%
-  group_by(SubCategory) %>%
   arrange(desc(year_month)) %>%
+  filter(year_month %in% unique(.$year_month)[2:3]) %>%
+  group_by(SubCategory) %>%
   summarise(delta = amount[1] - amount[2]) %>%
   ungroup() %>%
   arrange(desc(delta)) %>%
@@ -137,7 +137,7 @@ amounts_subcat %>%
   mutate(delta_str = if_else(delta < 0,
     paste("\u25be", dollar(delta)), paste("\u25b2", dollar(delta)))) %>%
   select("Sub-category" = SubCategory, "Change" = delta_str) %>%
-  gt() # %>%
+  gt()
   # tab_style(cell_fill("black"), cells_column_labels()) %>%
   # tab_style(cell_text("white", weight = "bold"), cells_column_labels())
 ```
@@ -147,7 +147,6 @@ amounts_subcat %>%
 ```{r thismonth, echo = FALSE}
 records %>%
   filter(year_month == unique(.$year_month)[2]) %>%
-  print() %>%
   group_by(SubCategory) %>%
   arrange(desc(amount)) %>%
   slice(1:5) %>%
@@ -155,6 +154,7 @@ records %>%
     dollar(amount), " (", format(Date, "%B %d"), "): ", Description)) %>%
   select("Expense" = full_label) %>%
   gt() %>%
-  tab_style(cell_fill("goldenrod"), cells_row_groups()) %>%
+  # tab_style(cell_fill("goldenrod"), cells_row_groups()) %>%
   tab_style(cell_text(weight = "bold"), cells_row_groups())
+  
 ```
