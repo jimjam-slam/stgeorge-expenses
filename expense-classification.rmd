@@ -138,8 +138,6 @@ amounts_subcat %>%
     paste("\u25be", dollar(delta)), paste("\u25b2", dollar(delta)))) %>%
   select("Sub-category" = SubCategory, "Change" = delta_str) %>%
   gt()
-  # tab_style(cell_fill("black"), cells_column_labels()) %>%
-  # tab_style(cell_text("white", weight = "bold"), cells_column_labels())
 ```
 
 # Top expenses last month
@@ -154,7 +152,6 @@ records %>%
     dollar(amount), " (", format(Date, "%B %d"), "): ", Description)) %>%
   select("Expense" = full_label) %>%
   gt() %>%
-  # tab_style(cell_fill("goldenrod"), cells_row_groups()) %>%
   tab_style(cell_text(weight = "bold"), cells_row_groups())
   
 ```
